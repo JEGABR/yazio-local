@@ -1044,6 +1044,198 @@
     document.getElementById('goalInputCarb').value = g.carb;
     document.getElementById('goalInputProt').value = g.prot;
     document.getElementById('goalInputFat').value = g.fat;
+
+    const keyInput = document.getElementById('geminiApiKeyInput');
+    if (keyInput) {
+      keyInput.value = getGeminiApiKey();
+    }
+  }
+
+  // ==================== AGENTE NUTRICIONISTA IA (GEMINI VISION) ====================
+  const GEMINI_KEY_STORAGE = 'nutriflow_gemini_api_key';
+  let lastAiAnalysisResult = null;
+
+  function getGeminiApiKey() {
+    return (localStorage.getItem(GEMINI_KEY_STORAGE) || state.geminiApiKey || '').trim();
+  }
+
+  function setGeminiApiKey(key) {
+    const clean = (key || '').trim();
+    localStorage.setItem(GEMINI_KEY_STORAGE, clean);
+    state.geminiApiKey = clean;
+    saveState();
+  }
+
+  function openAiPhotoModal() {
+    const hasKey = Boolean(getGeminiApiKey());
+    document.getElementById('aiInlineKeyBox').classList.toggle('hidden', hasKey);
+    document.getElementById('aiTargetMealSelect').value =
+      document.getElementById('searchTargetMeal')?.value || 'lunch';
+    document.getElementById('aiPhotoModal').classList.remove('hidden');
+  }
+
+  function compressImageFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          const base64Data = dataUrl.split(',')[1];
+          resolve({ dataUrl, base64Data, mimeType: 'image/jpeg' });
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function callGeminiVisionAPI(apiKey, base64Data, mimeType, userHint) {
+    const prompt = `Você é um nutricionista brasileiro especialista na Tabela TACO (UNICAMP) e em pratos prontos no Brasil (como feijoada, pizza, prato feito, churrasco, salgados, doces, lanches e marmitas).
+Analise a imagem deste alimento/prato e estime o peso em gramas, calorias (kcal) e macronutrientes (carboidratos, proteínas e gorduras em gramas) de toda a porção visível.
+${userHint ? `Observação adicional informada pelo usuário: "${userHint}".` : ''}
+
+Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
+{
+  "dishName": "Nome claro do prato ou alimento em português (ex: Pizza de Calabresa (2 fatias) ou Feijoada com Arroz e Couve)",
+  "totalGrams": 350,
+  "totalKcal": 640,
+  "totalCarbs": 62.5,
+  "totalProtein": 34.0,
+  "totalFat": 26.5,
+  "notes": "Resumo curto de 1 frase explicando a estimativa visual da porção.",
+  "items": [
+    {
+      "name": "Nome do ingrediente/item 1",
+      "grams": 150,
+      "kcal": 240,
+      "carbs": 20.0,
+      "protein": 18.0,
+      "fat": 9.5
+    }
+  ]
+}`;
+
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+          apiKey
+        )}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: mimeType, data: base64Data } }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          lastError = new Error(data?.error?.message || `Erro HTTP ${response.status}`);
+          continue;
+        }
+
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const cleaned = rawText.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleaned);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error('Não foi possível analisar a imagem no Gemini.');
+  }
+
+  async function handleAiPhotoFileSelected(file) {
+    if (!file) return;
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      document.getElementById('aiInlineKeyBox').classList.remove('hidden');
+      document.getElementById('aiInlineKeyInput').focus();
+      showToast('Cole sua chave gratuita do Gemini primeiro!');
+      return;
+    }
+
+    const previewContainer = document.getElementById('aiPreviewContainer');
+    const previewImg = document.getElementById('aiPreviewImage');
+    const loadingOverlay = document.getElementById('aiLoadingOverlay');
+    const statusText = document.getElementById('aiStatusText');
+    const resultCard = document.getElementById('aiResultCard');
+
+    resultCard.classList.add('hidden');
+    previewContainer.classList.remove('hidden');
+    loadingOverlay.classList.remove('hidden');
+    statusText.textContent = 'Processando foto e consultando o Agente Gemini...';
+
+    try {
+      const { dataUrl, base64Data, mimeType } = await compressImageFileToBase64(file);
+      previewImg.src = dataUrl;
+
+      const userHint = document.getElementById('aiUserHintInput').value.trim();
+      const result = await callGeminiVisionAPI(apiKey, base64Data, mimeType, userHint);
+      lastAiAnalysisResult = result;
+
+      // Preencher card de resultado
+      document.getElementById('aiDishTitle').textContent = result.dishName || 'Prato Identificado';
+      document.getElementById('aiDishWeightBadge').textContent = `~${Math.round(result.totalGrams || 100)}g`;
+      document.getElementById('aiDishNotes').textContent = result.notes || '';
+      document.getElementById('aiTotalKcal').textContent = Math.round(result.totalKcal || 0);
+      document.getElementById('aiTotalCarb').textContent = `${Number(result.totalCarbs || 0).toFixed(1)}g`;
+      document.getElementById('aiTotalProt').textContent = `${Number(result.totalProtein || 0).toFixed(1)}g`;
+      document.getElementById('aiTotalFat').textContent = `${Number(result.totalFat || 0).toFixed(1)}g`;
+
+      const itemsListEl = document.getElementById('aiDetectedItemsList');
+      const items = Array.isArray(result.items) ? result.items : [];
+      itemsListEl.innerHTML = items
+        .map(
+          (it) => `
+          <div class="recipe-ing-item">
+            <span><strong>${Math.round(it.grams || 100)}g</strong> ${it.name}</span>
+            <strong>${Math.round(it.kcal || 0)} kcal</strong>
+          </div>
+        `
+        )
+        .join('');
+
+      loadingOverlay.classList.add('hidden');
+      resultCard.classList.remove('hidden');
+    } catch (err) {
+      console.error('Erro na análise por IA:', err);
+      statusText.textContent = `Erro: ${err.message || 'Verifique sua chave de API do Gemini ou sua conexão.'}`;
+    }
   }
 
   function calculateMifflinStJeor(e) {
@@ -1505,6 +1697,98 @@
       saveState();
       renderAll();
       showToast('Metas diárias atualizadas!');
+    });
+
+    // Configuração da Chave do Gemini e Modal de Foto com IA
+    const geminiConfigForm = document.getElementById('geminiConfigForm');
+    if (geminiConfigForm) {
+      geminiConfigForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const key = document.getElementById('geminiApiKeyInput').value.trim();
+        setGeminiApiKey(key);
+        showToast('Chave do Gemini salva no seu iPhone!');
+      });
+    }
+
+    document.getElementById('btnOpenAiPhotoShortcut')?.addEventListener('click', openAiPhotoModal);
+    document.getElementById('btnOpenAiScannerSearch')?.addEventListener('click', openAiPhotoModal);
+    document.getElementById('btnCloseAiPhotoModal')?.addEventListener('click', () => {
+      document.getElementById('aiPhotoModal').classList.add('hidden');
+    });
+
+    document.getElementById('btnSaveInlineKey')?.addEventListener('click', () => {
+      const k = document.getElementById('aiInlineKeyInput').value.trim();
+      if (!k) {
+        showToast('Cole uma chave válida (AIzaSy...)');
+        return;
+      }
+      setGeminiApiKey(k);
+      document.getElementById('aiInlineKeyBox').classList.add('hidden');
+      showToast('Chave salva! Agora tire ou escolha a foto do prato.');
+    });
+
+    document.getElementById('aiCameraInput')?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleAiPhotoFileSelected(e.target.files[0]);
+      }
+    });
+
+    document.getElementById('aiGalleryInput')?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleAiPhotoFileSelected(e.target.files[0]);
+      }
+    });
+
+    document.getElementById('btnAddAiDishWhole')?.addEventListener('click', () => {
+      if (!lastAiAnalysisResult) return;
+      const r = lastAiAnalysisResult;
+      const mealKey = document.getElementById('aiTargetMealSelect').value;
+      const grams = Math.max(1, Math.round(r.totalGrams || 250));
+      const factor100 = 100 / grams;
+
+      const aiFoodObj = {
+        id: `ai_${Date.now()}`,
+        name: `✨ ${r.dishName || 'Prato Analisado por IA'}`,
+        category: 'Foto IA (Gemini)',
+        portionName: '1 prato/porção analisada',
+        portionGrams: grams,
+        kcal: Math.round((r.totalKcal || 0) * factor100),
+        carbs: Number(((r.totalCarbs || 0) * factor100).toFixed(1)),
+        protein: Number(((r.totalProtein || 0) * factor100).toFixed(1)),
+        fat: Number(((r.totalFat || 0) * factor100).toFixed(1)),
+        ingredients: Array.isArray(r.items)
+          ? r.items.map((i) => `${Math.round(i.grams || 0)}g ${i.name}`).join(' + ')
+          : r.notes || ''
+      };
+
+      state.customFoods.unshift(aiFoodObj);
+      addFoodEntryToDiary(aiFoodObj, grams, mealKey);
+      document.getElementById('aiPhotoModal').classList.add('hidden');
+      switchView('view-diary');
+    });
+
+    document.getElementById('btnAddAiDishSeparate')?.addEventListener('click', () => {
+      if (!lastAiAnalysisResult || !Array.isArray(lastAiAnalysisResult.items)) return;
+      const mealKey = document.getElementById('aiTargetMealSelect').value;
+      const day = getDayRecord(selectedDateKey);
+
+      lastAiAnalysisResult.items.forEach((it) => {
+        day.meals[mealKey].push({
+          foodId: `ai_item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: `✨ ${it.name}`,
+          grams: Math.max(1, Math.round(it.grams || 100)),
+          kcal: Number(it.kcal || 0),
+          carbs: Number(it.carbs || 0),
+          protein: Number(it.protein || 0),
+          fat: Number(it.fat || 0)
+        });
+      });
+
+      saveState();
+      renderAll();
+      document.getElementById('aiPhotoModal').classList.add('hidden');
+      switchView('view-diary');
+      showToast('Itens do prato adicionados ao diário!');
     });
 
     // Exportar / Importar / Resetar Dados

@@ -1621,3 +1621,201 @@ canvas {
   align-items: center;
   gap: 6px;
 }
+
+/* ==================== AGENTE NUTRICIONISTA IA (GEMINI VISION) ==================== */
+.meals-header-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-shortcut-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #8854D0 0%, #3867D6 100%);
+  border: none;
+  color: #FFFFFF;
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(136, 84, 208, 0.3);
+}
+
+.search-action-buttons-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.ai-tile-btn {
+  background: linear-gradient(135deg, #F3ECFF 0%, #E8F0FF 100%);
+  border-color: #D2BCFF;
+  color: #6B21A8;
+}
+
+.ai-badge {
+  background: linear-gradient(135deg, #F3ECFF 0%, #E8F0FF 100%);
+  color: #6B21A8;
+}
+
+.ai-config-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAF5FF 100%);
+  border-color: #E9D5FF;
+}
+
+.ai-inline-key-box {
+  background: #FAF5FF;
+  border: 1px solid #D8B4FE;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.ai-key-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7E22CE;
+  text-decoration: none;
+}
+
+.ai-capture-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ai-capture-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.ai-capture-btn:active {
+  transform: scale(0.96);
+}
+
+.ai-camera-primary {
+  background: linear-gradient(135deg, #8854D0 0%, #3867D6 100%);
+  color: #FFFFFF;
+  box-shadow: 0 6px 16px rgba(136, 84, 208, 0.25);
+}
+
+.ai-gallery-secondary {
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-light);
+  color: var(--text-main);
+}
+
+.ai-cam-icon {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.ai-capture-btn strong {
+  font-size: 0.84rem;
+}
+
+.ai-capture-btn small {
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+.ai-preview-container {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  max-height: 210px;
+  background: #0F172A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-preview-img {
+  width: 100%;
+  max-height: 210px;
+  object-fit: cover;
+  display: block;
+}
+
+.ai-loading-box {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.76);
+  backdrop-filter: blur(4px);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-weight: 600;
+  gap: 10px;
+}
+
+.ai-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #2ECC71;
+  border-radius: 50%;
+  animation: spinAi 0.8s linear infinite;
+}
+
+@keyframes spinAi {
+  to { transform: rotate(360deg); }
+}
+
+.ai-result-card {
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.ai-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ai-result-header h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.ai-dish-notes {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.ai-detected-items-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ai-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}

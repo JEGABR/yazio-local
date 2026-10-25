@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nutriflow-yazio-v2';
+const CACHE_NAME = 'nutriflow-yazio-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -32,8 +32,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Para chamadas da API OpenFoodFacts, usar rede primeiro
-  if (event.request.url.includes('openfoodfacts.org')) {
+  // Para chamadas da API OpenFoodFacts ou Google Gemini, usar rede direto
+  if (
+    event.request.url.includes('openfoodfacts.org') ||
+    event.request.url.includes('googleapis.com')
+  ) {
     event.respondWith(fetch(event.request));
     return;
   }

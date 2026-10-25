@@ -147,10 +147,15 @@
         <!-- SEÇÃO DE REFEIÇÕES DO DIA -->
         <div class="meals-section-header">
           <h2 class="section-heading">Alimentação</h2>
-          <button id="btnOpenBarcodeShortcut" class="barcode-shortcut-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
-            <span>Ler Código</span>
-          </button>
+          <div class="meals-header-shortcuts">
+            <button id="btnOpenAiPhotoShortcut" class="ai-shortcut-btn">
+              <span>✨ Foto IA</span>
+            </button>
+            <button id="btnOpenBarcodeShortcut" class="barcode-shortcut-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
+              <span>Código</span>
+            </button>
+          </div>
         </div>
 
         <div id="mealsContainer" class="meals-list">
@@ -194,7 +199,11 @@
             <button id="btnClearSearch" class="clear-search-btn hidden" aria-label="Limpar">✕</button>
           </div>
 
-          <div class="search-action-buttons">
+          <div class="search-action-buttons search-action-buttons-4">
+            <button id="btnOpenAiScannerSearch" class="action-tile-btn ai-tile-btn">
+              <span style="font-size: 1.15rem; line-height: 1;">✨📸</span>
+              <span>Foto IA</span>
+            </button>
             <button id="btnStartScanner" class="action-tile-btn scanner-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
               <span>Código EAN</span>
@@ -205,7 +214,7 @@
             </button>
             <button id="btnOpenCustomFoodModal" class="action-tile-btn custom-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Novo Alimento</span>
+              <span>Novo Item</span>
             </button>
           </div>
 
@@ -419,6 +428,22 @@
             </div>
 
             <button type="submit" class="btn-secondary btn-block">Salvar Metas Manuais</button>
+          </form>
+        </div>
+
+        <!-- CONFIGURAÇÃO DO AGENTE DE IA (GEMINI) -->
+        <div class="card ai-config-card">
+          <h3 class="card-title">✨ Agente Nutricionista por Foto (Google Gemini)</h3>
+          <p class="card-desc">Cole sua chave gratuita do Google AI Studio para identificar pratos prontos (como pizza, feijoada, self-service) direto pela câmera do iPhone. A chave fica salva <strong>apenas localmente no seu aparelho</strong>.</p>
+          <form id="geminiConfigForm" class="form-grid">
+            <div class="form-group">
+              <label>Sua Chave de API do Gemini (AIzaSy...)</label>
+              <input type="password" id="geminiApiKeyInput" class="input-field" placeholder="Cole sua API Key aqui..." autocomplete="off" />
+            </div>
+            <div class="backup-actions">
+              <button type="submit" class="btn-primary">Salvar Chave IA</button>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="btn-secondary file-label-btn" style="text-decoration:none;">🔑 Gerar Chave Grátis</a>
+            </div>
           </form>
         </div>
 
@@ -690,6 +715,112 @@
         </div>
         <button type="submit" class="btn-primary btn-block">Salvar Pesagem</button>
       </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: AGENTE NUTRICIONISTA IA (FOTO DO PRATO COM GEMINI) ==================== -->
+  <div id="aiPhotoModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div>
+          <span class="modal-badge ai-badge">✨ Google Gemini Vision</span>
+          <h3 class="modal-title">Analisar Prato por Foto</h3>
+        </div>
+        <button id="btnCloseAiPhotoModal" class="btn-close-sm">✕</button>
+      </div>
+
+      <!-- AVISO/CAMPO DE API KEY SE AINDA NÃO TIVER CONFIGURADO -->
+      <div id="aiInlineKeyBox" class="ai-inline-key-box hidden">
+        <p>Para usar o scanner de fotos, cole sua <strong>API Key gratuita do Google Gemini</strong> abaixo (fica salva apenas no seu iPhone):</p>
+        <div class="manual-barcode-row" style="margin-top:8px;">
+          <input type="password" id="aiInlineKeyInput" class="input-field" placeholder="AIzaSy..." autocomplete="off" />
+          <button type="button" id="btnSaveInlineKey" class="btn-primary btn-sm">Salvar</button>
+        </div>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="ai-key-link">🔑 Obter chave gratuita no Google AI Studio →</a>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Refeição</label>
+            <select id="aiTargetMealSelect" class="input-field">
+              <option value="breakfast">☕ Café da Manhã</option>
+              <option value="lunch">🍲 Almoço</option>
+              <option value="dinner">🥗 Jantar</option>
+              <option value="snacks">🍎 Lanches</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dica opcional p/ IA</label>
+            <input type="text" id="aiUserHintInput" class="input-field" placeholder="Ex: 2 fatias, sem óleo..." />
+          </div>
+        </div>
+
+        <!-- BOTÕES DE CAPTURA DE FOTO NO IPHONE -->
+        <div class="ai-capture-buttons">
+          <label for="aiCameraInput" class="ai-capture-btn ai-camera-primary">
+            <span class="ai-cam-icon">📷</span>
+            <strong>Tirar Foto do Prato</strong>
+            <small>Usar câmera do iPhone</small>
+          </label>
+          <input type="file" id="aiCameraInput" accept="image/*" capture="environment" class="hidden" />
+
+          <label for="aiGalleryInput" class="ai-capture-btn ai-gallery-secondary">
+            <span class="ai-cam-icon">🖼️</span>
+            <strong>Escolher da Galeria</strong>
+            <small>Foto ou print salvo</small>
+          </label>
+          <input type="file" id="aiGalleryInput" accept="image/*" class="hidden" />
+        </div>
+
+        <!-- PREVIEW DA IMAGEM E STATUS DE ANÁLISE -->
+        <div id="aiPreviewContainer" class="ai-preview-container hidden">
+          <img id="aiPreviewImage" class="ai-preview-img" alt="Foto do prato" />
+          <div id="aiLoadingOverlay" class="ai-loading-box hidden">
+            <div class="ai-spinner"></div>
+            <span id="aiStatusText">O Gemini está identificando os alimentos e calculando os macros...</span>
+          </div>
+        </div>
+
+        <!-- RESULTADO DA ANÁLISE DO GEMINI -->
+        <div id="aiResultCard" class="ai-result-card hidden">
+          <div class="ai-result-header">
+            <h4 id="aiDishTitle">Feijoada Completa</h4>
+            <span id="aiDishWeightBadge" class="modal-badge">~380g</span>
+          </div>
+          <p id="aiDishNotes" class="ai-dish-notes"></p>
+
+          <div class="portion-macro-preview" style="margin-bottom: 10px;">
+            <div class="preview-kcal-circle">
+              <strong id="aiTotalKcal">580</strong>
+              <span>kcal</span>
+            </div>
+            <div class="preview-macros-row">
+              <div class="preview-macro-box carb-box">
+                <span class="pm-label">Carbo</span>
+                <strong id="aiTotalCarb">54g</strong>
+              </div>
+              <div class="preview-macro-box prot-box">
+                <span class="pm-label">Proteína</span>
+                <strong id="aiTotalProt">36g</strong>
+              </div>
+              <div class="preview-macro-box fat-box">
+                <span class="pm-label">Gordura</span>
+                <strong id="aiTotalFat">22g</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-detected-items-title">Itens identificados no prato:</div>
+          <div id="aiDetectedItemsList" class="recipe-ing-list"></div>
+
+          <div class="ai-result-actions">
+            <button type="button" id="btnAddAiDishWhole" class="btn-primary btn-block">✅ Adicionar Prato ao Diário</button>
+            <button type="button" id="btnAddAiDishSeparate" class="btn-secondary btn-block">📋 Lançar Itens Separadamente</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
