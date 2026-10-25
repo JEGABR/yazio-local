@@ -455,6 +455,65 @@
   let autoOnlineDebounce = null;
   let isSearchingOnline = false;
   let recipeBuilderIngredients = [];
+  let smartGeneratedFoods = [];
+
+  const STOPWORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'com', 'sem', 'no', 'na', 'ao', 'a', 'o', 'e', 'em', 'para', 'por']);
+
+  function getQueryTokens(queryStr) {
+    return normalizeText(queryStr)
+      .split(/\s+/)
+      .filter((w) => w.length > 1 && !STOPWORDS.has(w));
+  }
+
+  // Estimador Culinário Inteligente para qualquer prato/alimento digitado que não esteja na lista fixa
+  function estimateDishFromQuery(queryRaw) {
+    const q = normalizeText(queryRaw);
+    if (q.length < 3) return null;
+
+    const titleCase = queryRaw
+      .trim()
+      .replace(/\s+/g, ' ')
+      .split(' ')
+      .map((w, i) => (STOPWORDS.has(w.toLowerCase()) && i > 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+      .join(' ');
+
+    // Perfil nutricional base inteligente por tipo de prato brasileiro
+    let kcal = 210, carbs = 22.0, protein = 10.0, fat = 9.0, portionName = '1 porção média', portionGrams = 120, cat = 'Estimativa Nutricional BR';
+
+    if (q.includes('torta') || q.includes('quiche') || q.includes('empada')) {
+      kcal = 272; carbs = 22.5; protein = 12.8; fat = 14.6; portionName = '1 fatia média'; portionGrams = 120; cat = 'Tortas e Salgados';
+      if (q.includes('doce') || q.includes('limao') || q.includes('chocolate') || q.includes('morango') || q.includes('holandesa')) {
+        kcal = 310; carbs = 39.0; protein = 4.8; fat = 14.8; portionName = '1 fatia média'; portionGrams = 100; cat = 'Doces e Tortas';
+      }
+    } else if (q.includes('bolo')) {
+      kcal = 335; carbs = 50.0; protein = 5.0; fat = 12.8; portionName = '1 fatia média'; portionGrams = 80; cat = 'Bolos e Doces';
+    } else if (q.includes('pizza')) {
+      kcal = 265; carbs = 28.5; protein = 12.5; fat = 11.2; portionName = '1 fatia grande'; portionGrams = 100; cat = 'Pizzas e Lanches';
+    } else if (q.includes('sanduiche') || q.includes('lanche') || q.includes('hamburguer') || q.includes('pao')) {
+      kcal = 258; carbs = 29.0; protein = 13.5; fat = 9.8; portionName = '1 unidade'; portionGrams = 140; cat = 'Sanduíches e Lanches';
+    } else if (q.includes('sopa') || q.includes('caldo') || q.includes('creme')) {
+      kcal = 95; carbs = 11.5; protein = 5.2; fat = 3.1; portionName = '1 cumbuca / prato fundo'; portionGrams = 280; cat = 'Sopas e Caldos';
+    } else if (q.includes('suco') || q.includes('vitamina') || q.includes('shake') || q.includes('bebida')) {
+      kcal = 68; carbs = 12.5; protein = 2.2; fat = 1.1; portionName = '1 copo (250ml)'; portionGrams = 250; cat = 'Bebidas';
+    } else if (q.includes('salada') || q.includes('legume')) {
+      kcal = 45; carbs = 6.5; protein = 2.0; fat = 1.5; portionName = '1 prato / porção'; portionGrams = 120; cat = 'Verduras e Saladas';
+    } else if (q.includes('frango') || q.includes('carne') || q.includes('peixe') || q.includes('bife') || q.includes('file')) {
+      kcal = 195; carbs = 3.5; protein = 27.5; fat = 7.8; portionName = '1 porção média'; portionGrams = 130; cat = 'Carnes e Pratos';
+    }
+
+    return {
+      id: `smart_${normalizeText(queryRaw).replace(/[^a-z0-9]/g, '_')}`,
+      name: `${titleCase}`,
+      category: cat,
+      kcal,
+      carbs,
+      protein,
+      fat,
+      portionName,
+      portionGrams,
+      ingredients: `Valores médios estimados para ${titleCase} (você pode ajustar as gramas ao tocar).`
+    };
+  }
 
   function getAllLocalFoods() {
     const custom = (state.customFoods || []).map((f) => ({
@@ -465,7 +524,7 @@
       ...r,
       isRecipe: true
     }));
-    return [...custom, ...recipes, ...(window.TACO_FOODS || [])];
+    return [...custom, ...recipes, ...(window.TACO_FOODS || []), ...smartGeneratedFoods];
   }
 
   function formatFoodCardHtml(f) {
@@ -473,7 +532,11 @@
     const pFactor = pGrams / 100;
     const pKcal = Math.round(f.kcal * pFactor);
     const isFav = state.favorites.includes(f.id);
-    const isRec = f.isRecipe || (f.category && f.category.toLowerCase().includes('receita')) || (f.category && f.category.toLowerCase().includes('pratos'));
+    const isRec =
+      f.isRecipe ||
+      (f.category && f.category.toLowerCase().includes('receita')) ||
+      (f.category && f.category.toLowerCase().includes('pratos')) ||
+      (f.category && f.category.toLowerCase().includes('torta'));
 
     return `
       <div class="food-item-card" data-food-id="${f.id}">
@@ -500,6 +563,7 @@
   function renderFoodSearchResults() {
     const queryRaw = document.getElementById('foodSearchInput').value.trim();
     const query = normalizeText(queryRaw);
+    const tokens = getQueryTokens(queryRaw);
     const clearBtn = document.getElementById('btnClearSearch');
     clearBtn.classList.toggle('hidden', queryRaw.length === 0);
 
@@ -510,38 +574,71 @@
     if (activeSearchTab === 'online') {
       foods = onlineSearchResults;
       if (isSearchingOnline) {
-        listEl.innerHTML = `<div class="empty-state-box">🌐 Buscando "<strong>${queryRaw}</strong>" nos produtos registrados no Brasil (Open Food Facts)...</div>`;
+        listEl.innerHTML = `<div class="empty-state-box">🌐 Buscando "<strong>${queryRaw}</strong>" nos produtos registrados no Brasil...</div>`;
         return;
+      }
+      if (foods.length === 0 && query.length >= 3) {
+        const smartItem = estimateDishFromQuery(queryRaw);
+        if (smartItem) {
+          smartGeneratedFoods = [smartItem];
+          foods = [smartItem];
+        }
       }
       if (foods.length === 0) {
         listEl.innerHTML = `
           <div class="empty-state-box">
-            <p>Digite o nome de qualquer produto ou marca de supermercado do Brasil na barra de busca acima para pesquisar em milhares de itens registrados!</p>
+            <p>Digite o nome de qualquer produto, prato ou marca na barra de busca acima!</p>
           </div>
         `;
         return;
       }
     } else {
+      const basePool = allLocal.filter((f) => !String(f.id).startsWith('smart_'));
       if (activeSearchTab === 'favorites') {
-        foods = allLocal.filter((f) => state.favorites.includes(f.id));
+        foods = basePool.filter((f) => state.favorites.includes(f.id));
       } else if (activeSearchTab === 'recipes') {
-        foods = allLocal.filter(
+        foods = basePool.filter(
           (f) =>
             f.isRecipe ||
             (f.category && f.category.toLowerCase().includes('receita')) ||
-            (f.category && f.category.toLowerCase().includes('pratos'))
+            (f.category && f.category.toLowerCase().includes('pratos')) ||
+            (f.category && f.category.toLowerCase().includes('torta'))
         );
       } else {
-        foods = allLocal;
+        foods = basePool;
       }
 
       if (query) {
-        foods = foods.filter(
-          (f) =>
-            normalizeText(f.name).includes(query) ||
-            normalizeText(f.category).includes(query) ||
-            normalizeText(f.ingredients || '').includes(query)
-        );
+        const scored = [];
+        foods.forEach((f) => {
+          const normName = normalizeText(f.name);
+          const normAll = `${normName} ${normalizeText(f.category)} ${normalizeText(f.ingredients || '')}`;
+
+          let score = 0;
+          if (normName.includes(query)) {
+            score = 100;
+          } else if (tokens.length > 0 && tokens.every((t) => normName.includes(t))) {
+            score = 85;
+          } else if (tokens.length > 0 && tokens.every((t) => normAll.includes(t))) {
+            score = 65;
+          }
+
+          if (score > 0) {
+            scored.push({ food: f, score });
+          }
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        foods = scored.map((s) => s.food);
+
+        // Se o termo digitado não tiver correspondência exata na base local, gera uma estimativa culinária imediata
+        if (foods.length === 0 && query.length >= 3) {
+          const smartItem = estimateDishFromQuery(queryRaw);
+          if (smartItem) {
+            smartGeneratedFoods = [smartItem];
+            foods = [smartItem];
+          }
+        }
       }
     }
 
@@ -550,21 +647,11 @@
     // Se estiver pesquisando por texto, mostrar também os resultados automáticos do supermercado (Open Food Facts Brasil)
     if (activeSearchTab !== 'online' && query.length >= 3) {
       if (isSearchingOnline) {
-        html += `<div class="online-results-divider">🌐 Buscando marcas e produtos no Brasil para "${queryRaw}"...</div>`;
+        html += `<div class="online-results-divider">🌐 Buscando mais opções no Brasil para "${queryRaw}"...</div>`;
       } else if (onlineSearchResults.length > 0) {
-        html += `<div class="online-results-divider">🌐 Produtos de Supermercado no Brasil (Open Food Facts)</div>`;
+        html += `<div class="online-results-divider">🌐 Mais Resultados Encontrados no Brasil</div>`;
         html += onlineSearchResults.slice(0, 25).map(formatFoodCardHtml).join('');
       }
-    }
-
-    if (!html) {
-      listEl.innerHTML = `
-        <div class="empty-state-box">
-          <p>Nenhum item local encontrado para "<strong>${queryRaw}</strong>".</p>
-          <p style="margin-top:8px;">${isSearchingOnline ? '🌐 Buscando na base nacional online...' : 'Você pode criar uma receita ou alimento personalizado nos botões acima!'}</p>
-        </div>
-      `;
-      return;
     }
 
     listEl.innerHTML = html;
@@ -594,7 +681,7 @@
     });
   }
 
-  // Busca Online na API do Open Food Facts Brasil
+  // Busca Online na API do Open Food Facts + Gemini IA Text Lookup
   async function searchOpenFoodFacts(silentAuto = false) {
     const queryRaw = document.getElementById('foodSearchInput').value.trim();
     if (!queryRaw || queryRaw.length < 2) {
@@ -609,9 +696,9 @@
     renderFoodSearchResults();
 
     try {
-      const url = `https://br.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
         queryRaw
-      )}&search_simple=1&action=process&json=1&page_size=28`;
+      )}&cc=br&lc=pt&search_simple=1&action=process&json=1&page_size=24`;
       const res = await fetch(url);
       const data = await res.json();
 
