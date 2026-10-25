@@ -462,7 +462,8 @@
   function getQueryTokens(queryStr) {
     return normalizeText(queryStr)
       .split(/\s+/)
-      .filter((w) => w.length > 1 && !STOPWORDS.has(w));
+      .filter((w) => w.length > 1 && !STOPWORDS.has(w))
+      .map((w) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w));
   }
 
   // Estimador Culinário Inteligente para qualquer prato/alimento digitado que não esteja na lista fixa
@@ -534,19 +535,37 @@
     const isFav = state.favorites.includes(f.id);
     const isRec =
       f.isRecipe ||
+      f.table === 'RECEITA' ||
       (f.category && f.category.toLowerCase().includes('receita')) ||
       (f.category && f.category.toLowerCase().includes('pratos')) ||
       (f.category && f.category.toLowerCase().includes('torta'));
+
+    let sourceBadge = '';
+    if (f.table === 'TACO' || String(f.id).startsWith('taco_')) {
+      sourceBadge = '<span style="background:#E8F8F0;color:#169650;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:4px;">TACO</span>';
+    } else if (f.table === 'IBGE') {
+      sourceBadge = '<span style="background:#EAF4FF;color:#1E6FD9;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:4px;">IBGE</span>';
+    } else if (f.table === 'CATALOG') {
+      sourceBadge = `<span style="background:#F3ECFF;color:#6C3CE9;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:4px;">${f.brand || 'Marca'}</span>`;
+    } else if (isRec) {
+      sourceBadge = '<span style="background:#FFF3E6;color:#E66700;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:4px;">Receita BR</span>';
+    }
+
+    const fiberPill =
+      f.fiber && Number(f.fiber) > 0
+        ? `<span class="m-pill-c" style="background:#F1F5F9;color:#475569;">Fib: ${(Number(f.fiber) * pFactor).toFixed(1)}g</span>`
+        : '';
 
     return `
       <div class="food-item-card" data-food-id="${f.id}">
         <div class="food-item-main">
           <span class="food-item-title">${isFav ? '⭐ ' : ''}${isRec ? '👩‍🍳 ' : ''}${f.name}</span>
-          <span class="food-item-sub">${f.portionName || 'Porção'} (${pGrams}g) · ${f.category || 'Alimento'}</span>
+          <span class="food-item-sub">${sourceBadge}${f.portionName || 'Porção'} (${pGrams}g) · ${f.category || 'Alimento'}</span>
           <div class="food-item-macros-pills">
             <span class="m-pill-c">C: ${(f.carbs * pFactor).toFixed(1)}g</span>
             <span class="m-pill-p">P: ${(f.protein * pFactor).toFixed(1)}g</span>
             <span class="m-pill-f">G: ${(f.fat * pFactor).toFixed(1)}g</span>
+            ${fiberPill}
           </div>
         </div>
         <div class="food-item-right">
@@ -566,6 +585,10 @@
     const tokens = getQueryTokens(queryRaw);
     const clearBtn = document.getElementById('btnClearSearch');
     clearBtn.classList.toggle('hidden', queryRaw.length === 0);
+
+    const groupFilterEl = document.getElementById('foodGroupFilter');
+    const selectedGroup = groupFilterEl ? groupFilterEl.value : 'all';
+    const countBadgeEl = document.getElementById('searchCountBadge');
 
     const listEl = document.getElementById('foodResultsList');
     const allLocal = getAllLocalFoods();
@@ -596,10 +619,17 @@
       const basePool = allLocal.filter((f) => !String(f.id).startsWith('smart_'));
       if (activeSearchTab === 'favorites') {
         foods = basePool.filter((f) => state.favorites.includes(f.id));
+      } else if (activeSearchTab === 'taco') {
+        foods = basePool.filter((f) => f.table === 'TACO' || String(f.id).startsWith('taco_'));
+      } else if (activeSearchTab === 'ibge') {
+        foods = basePool.filter((f) => f.table === 'IBGE');
+      } else if (activeSearchTab === 'catalog') {
+        foods = basePool.filter((f) => f.table === 'CATALOG');
       } else if (activeSearchTab === 'recipes') {
         foods = basePool.filter(
           (f) =>
             f.isRecipe ||
+            f.table === 'RECEITA' ||
             (f.category && f.category.toLowerCase().includes('receita')) ||
             (f.category && f.category.toLowerCase().includes('pratos')) ||
             (f.category && f.category.toLowerCase().includes('torta'))
@@ -608,22 +638,52 @@
         foods = basePool;
       }
 
+      // Filtro por Grupo Alimentar (parametrizado com tabelatacoonline.com.br)
+      if (selectedGroup && selectedGroup !== 'all') {
+        const normGroup = normalizeText(selectedGroup);
+        foods = foods.filter((f) => {
+          const fc = normalizeText(f.category || '');
+          if (normGroup.includes('torta')) {
+            return fc.includes('torta') || fc.includes('salgado') || normalizeText(f.name).includes('torta') || normalizeText(f.name).includes('quiche');
+          }
+          if (normGroup.includes('cereais')) return fc.includes('cereais') || fc.includes('padaria') || fc.includes('tuberculo');
+          if (normGroup.includes('carnes')) return fc.includes('carne');
+          if (normGroup.includes('leite')) return fc.includes('leite') || fc.includes('laticinio');
+          if (normGroup.includes('frutas')) return fc.includes('fruta');
+          if (normGroup.includes('verduras')) return fc.includes('verdura') || fc.includes('hortali');
+          if (normGroup.includes('leguminosas')) return fc.includes('leguminosa');
+          if (normGroup.includes('nozes')) return fc.includes('nozes') || fc.includes('castanha');
+          if (normGroup.includes('gorduras')) return fc.includes('gordura') || fc.includes('oleo');
+          if (normGroup.includes('acucarados')) return fc.includes('acucarado') || fc.includes('doce');
+          if (normGroup.includes('bebidas')) return fc.includes('bebida');
+          return fc.includes(normGroup);
+        });
+      }
+
       if (query) {
         const scored = [];
         foods.forEach((f) => {
           const normName = normalizeText(f.name);
-          const normAll = `${normName} ${normalizeText(f.category)} ${normalizeText(f.ingredients || '')}`;
+          const normAll = `${normName} ${normalizeText(f.category || '')} ${normalizeText(f.brand || '')} ${normalizeText(f.ingredients || '')}`;
 
           let score = 0;
-          if (normName.includes(query)) {
+          if (normName === query) {
+            score = 130;
+          } else if (normName.startsWith(query)) {
+            score = 115;
+          } else if (normName.includes(query)) {
             score = 100;
           } else if (tokens.length > 0 && tokens.every((t) => normName.includes(t))) {
-            score = 85;
+            score = 88;
           } else if (tokens.length > 0 && tokens.every((t) => normAll.includes(t))) {
-            score = 65;
+            score = 68;
           }
 
           if (score > 0) {
+            // Priorizar destaques/receitas curadas e itens TACO/IBGE no desempate
+            if (String(f.id).startsWith('torta_') || f.isRecipe || f.table === 'RECEITA') score += 6;
+            else if (String(f.id).startsWith('taco_')) score += 4;
+            else if (f.table === 'IBGE') score += 2;
             scored.push({ food: f, score });
           }
         });
@@ -642,7 +702,11 @@
       }
     }
 
-    let html = foods.slice(0, 80).map(formatFoodCardHtml).join('');
+    if (countBadgeEl) {
+      countBadgeEl.textContent = `${foods.length.toLocaleString('pt-BR')} itens`;
+    }
+
+    let html = foods.slice(0, 100).map(formatFoodCardHtml).join('');
 
     // Se estiver pesquisando por texto, mostrar também os resultados automáticos do supermercado (Open Food Facts Brasil)
     if (activeSearchTab !== 'online' && query.length >= 3) {
@@ -842,6 +906,31 @@
       ingBox.classList.remove('hidden');
     } else {
       ingBox.classList.add('hidden');
+    }
+
+    const tacoOnlineBox = document.getElementById('modalTacoOnlineBox');
+    const tacoSourceText = document.getElementById('modalTacoSourceText');
+    const tacoOnlineLink = document.getElementById('modalTacoOnlineLink');
+    if (tacoOnlineBox && tacoSourceText && tacoOnlineLink) {
+      if (food.slug) {
+        const tblLabel =
+          food.table === 'TACO'
+            ? 'Tabela TACO (UNICAMP)'
+            : food.table === 'IBGE'
+            ? 'Tabela IBGE (POF)'
+            : `Catálogo (${food.brand || 'Marca BR'})`;
+        tacoSourceText.textContent = `Fonte: ${tblLabel}`;
+        const urlPath =
+          food.table === 'TACO'
+            ? `https://www.tabelatacoonline.com.br/`
+            : `https://www.tabelatacoonline.com.br/`;
+        tacoOnlineLink.href = urlPath;
+        tacoOnlineBox.classList.remove('hidden');
+      } else {
+        tacoSourceText.textContent = `Fonte: Base Brasileira TACO / Receitas`;
+        tacoOnlineLink.href = 'https://www.tabelatacoonline.com.br/';
+        tacoOnlineBox.classList.remove('hidden');
+      }
     }
 
     const favBtn = document.getElementById('btnFavToggleModal');
@@ -1575,6 +1664,14 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
       });
     });
 
+    // Filtro por Grupo Alimentar (estilo tabelatacoonline.com.br)
+    const groupFilterEl = document.getElementById('foodGroupFilter');
+    if (groupFilterEl) {
+      groupFilterEl.addEventListener('change', () => {
+        renderFoodSearchResults();
+      });
+    }
+
     // Botões de ação na busca
     document.getElementById('btnStartScanner').addEventListener('click', startBarcodeScanner);
     document.getElementById('btnCloseScanner').addEventListener('click', () => stopBarcodeScanner(true));
@@ -1994,10 +2091,22 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
       }
     });
 
-    // Registrar Service Worker para funcionar Offline no iPhone
+    // Registrar Service Worker para funcionar Offline no iPhone (com atualização imediata)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker
+          .register('./sw.js', { updateViaCache: 'none' })
+          .then((reg) => {
+            reg.update().catch(() => {});
+          })
+          .catch(() => {});
+      });
+      let refreshingSw = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshingSw) {
+          refreshingSw = true;
+          window.location.reload();
+        }
       });
     }
   }

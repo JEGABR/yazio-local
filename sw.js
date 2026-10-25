@@ -1,10 +1,10 @@
-const CACHE_NAME = 'nutriflow-yazio-v5';
+const CACHE_NAME = 'nutriflow-yazio-v6';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './taco-data.js',
-  './app.js',
+  './styles.css?v=6',
+  './taco-data.js?v=6',
+  './app.js?v=6',
   './manifest.json',
   './icon.svg'
 ];
@@ -41,15 +41,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Estratégia Network-First com fallback para Cache Offline (garante atualização imediata no iPhone!)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return (
-        cachedResponse ||
-        fetch(event.request).then((networkResponse) => {
-          return networkResponse;
-        })
-      );
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request, { ignoreSearch: true });
+      })
   );
 });
-

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=6" />
   <!-- Biblioteca para leitura de código de barras na câmera do iPhone/Safari -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 </head>
@@ -218,12 +218,39 @@
             </button>
           </div>
 
-          <!-- ABAS DE CATEGORIA DE BUSCA -->
+          <!-- ABAS DE CATEGORIA DE BUSCA (PARAMETRIZADO COM TABELATACOONLINE.COM.BR) -->
           <div class="search-tabs">
-            <button class="search-tab active" data-tab="all">Brasil (TACO)</button>
-            <button class="search-tab" data-tab="recipes">Receitas 👩‍🍳</button>
+            <button class="search-tab active" data-tab="all">Todos (4.800+)</button>
+            <button class="search-tab" data-tab="taco">TACO (597)</button>
+            <button class="search-tab" data-tab="ibge">IBGE (1.971)</button>
+            <button class="search-tab" data-tab="catalog">Marcas (1.932)</button>
+            <button class="search-tab" data-tab="recipes">Receitas & Tortas 👩‍🍳</button>
             <button class="search-tab" data-tab="favorites">Favoritos ⭐</button>
-            <button class="search-tab" data-tab="online">Mercado 🌐</button>
+            <button class="search-tab" data-tab="online">Web 🌐</button>
+          </div>
+
+          <!-- FILTRO DE GRUPO ALIMENTAR (IGUAL AO TABELATACOONLINE.COM.BR) -->
+          <div class="group-filter-bar" style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">
+            <select id="foodGroupFilter" class="input-field" style="padding: 8px 12px; font-size: 13px; flex: 1;">
+              <option value="all">📂 Todos os Grupos Alimentares (TACO / IBGE / Marcas)</option>
+              <option value="Tortas e Salgados">🥧 Tortas, Quiches e Salgados</option>
+              <option value="Alimentos preparados">🍲 Alimentos Preparados & Pratos Prontos</option>
+              <option value="Cereais e derivados">🌾 Cereais, Pães, Massas e Tubérculos</option>
+              <option value="Carnes e derivados">🥩 Carnes, Aves e Embutidos</option>
+              <option value="Pescados e frutos do mar">🐟 Pescados e Frutos do Mar</option>
+              <option value="Leite e derivados">🧀 Leites, Queijos e Iogurtes</option>
+              <option value="Ovos e derivados">🥚 Ovos e Derivados</option>
+              <option value="Frutas e derivados">🍎 Frutas e Sucos Naturais</option>
+              <option value="Verduras, hortaliças e derivados">🥦 Verduras, Hortaliças e Legumes</option>
+              <option value="Leguminosas e derivados">🫘 Feijões, Soja e Leguminosas</option>
+              <option value="Nozes e sementes">🥜 Castanhas, Nozes e Sementes</option>
+              <option value="Gorduras e óleos">🫒 Azeites, Manteigas e Gorduras</option>
+              <option value="Produtos açucarados">🍫 Doces, Bolos, Chocolates e Sobremesas</option>
+              <option value="Suplementos">💪 Suplementos (Whey, Barras, Creatina)</option>
+              <option value="Bebidas">🥤 Bebidas (Cafés, Sucos, Refrigerantes)</option>
+              <option value="Outros alimentos industrializados">🛒 Outros Alimentos Industrializados</option>
+            </select>
+            <span id="searchCountBadge" class="bmi-pill" style="white-space: nowrap; font-size: 11px;">4.805 itens</span>
           </div>
         </div>
 
@@ -534,6 +561,10 @@
         <strong>👩‍🍳 Ingredientes da Receita:</strong>
         <p id="modalRecipeIngredientsText"></p>
       </div>
+      <div id="modalTacoOnlineBox" class="recipe-ingredients-info hidden" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <span id="modalTacoSourceText" style="font-size: 12px; color: var(--text-secondary);">Fonte: Tabela TACO Online</span>
+        <a id="modalTacoOnlineLink" href="https://www.tabelatacoonline.com.br/" target="_blank" rel="noopener" style="font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none;">Ver no TACO Online ↗</a>
+      </div>
 
       <!-- ESCOLHA DE MEDIDA CASEIRA OU GRAMAS -->
       <div class="form-grid">
@@ -831,8 +862,8 @@
   <!-- TOAST NOTIFICATION -->
   <div id="toastNotification" class="toast hidden">Alimento adicionado!</div>
 
-  <script src="taco-data.js"></script>
-  <script src="app.js"></script>
+  <script src="taco-data.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
 
