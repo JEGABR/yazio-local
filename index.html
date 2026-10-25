@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="NutriFlow" />
+  <meta name="theme-color" content="#FFFFFF" />
+  <title>NutriFlow — Diário Alimentar & Macros</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Biblioteca para leitura de código de barras na câmera do iPhone/Safari -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- TOP BAR FIXA ESTILO YAZIO -->
+    <header class="top-header">
+      <div class="header-main-row">
+        <div class="date-nav">
+          <button id="btnPrevDay" class="icon-btn" aria-label="Dia anterior">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button id="btnTodayPicker" class="date-title-btn">
+            <span id="currentDateLabel" class="date-title-main">Hoje</span>
+            <span id="currentDateSub" class="date-title-sub">25 de out.</span>
+          </button>
+          <button id="btnNextDay" class="icon-btn" aria-label="Próximo dia">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <div class="header-actions">
+          <button id="btnJumpToday" class="pill-today-btn hidden">Hoje</button>
+          <div class="streak-badge" title="Dias seguidos registrando">
+            <span class="streak-fire">🔥</span>
+            <span id="streakCount">1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SELETOR DE SEMANA (7 DIAS) -->
+      <div class="week-strip" id="weekStrip">
+        <!-- Preenchido via JS -->
+      </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL (VIEWS) -->
+    <main class="main-content">
+
+      <!-- ==================== VIEW 1: DIÁRIO ==================== -->
+      <section id="view-diary" class="view-section active">
+        <!-- CARD RESUMO DE CALORIAS E MACROS -->
+        <div class="card summary-card">
+          <div class="summary-card-header">
+            <span class="section-label">Resumo Diário</span>
+            <button id="btnQuickGoals" class="link-btn">Editar metas</button>
+          </div>
+
+          <div class="calorie-ring-row">
+            <div class="calorie-stat">
+              <span class="stat-value" id="valConsumed">0</span>
+              <span class="stat-label">Consumidas</span>
+            </div>
+
+            <div class="ring-container">
+              <svg class="calorie-ring-svg" width="146" height="146" viewBox="0 0 146 146">
+                <circle class="ring-bg" cx="73" cy="73" r="60" fill="none" stroke-width="12" />
+                <circle id="calorieRingProgress" class="ring-progress" cx="73" cy="73" r="60" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="376.99" stroke-dashoffset="376.99" />
+              </svg>
+              <div class="ring-center-text">
+                <span class="ring-number" id="valRemaining">2000</span>
+                <span class="ring-unit" id="lblRemainingStatus">kcal restantes</span>
+                <span class="ring-goal-sub">Meta: <strong id="valGoalTotal">2000</strong></span>
+              </div>
+            </div>
+
+            <div class="calorie-stat">
+              <span class="stat-value stat-burned" id="valBurned">0</span>
+              <span class="stat-label">Queimadas</span>
+            </div>
+          </div>
+
+          <!-- BARRAS DE MACRONUTRIENTES -->
+          <div class="macros-grid">
+            <div class="macro-item">
+              <div class="macro-header">
+                <span class="macro-name">Carboidratos</span>
+                <span class="macro-pct" id="carbPct">0%</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="carbBar" class="macro-bar-fill carb-fill" style="width: 0%"></div>
+              </div>
+              <span class="macro-numbers"><strong id="valCarb">0</strong> / <span id="goalCarb">250</span>g</span>
+            </div>
+
+            <div class="macro-item">
+              <div class="macro-header">
+                <span class="macro-name">Proteínas</span>
+                <span class="macro-pct" id="protPct">0%</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="protBar" class="macro-bar-fill prot-fill" style="width: 0%"></div>
+              </div>
+              <span class="macro-numbers"><strong id="valProt">0</strong> / <span id="goalProt">140</span>g</span>
+            </div>
+
+            <div class="macro-item">
+              <div class="macro-header">
+                <span class="macro-name">Gorduras</span>
+                <span class="macro-pct" id="fatPct">0%</span>
+              </div>
+              <div class="macro-bar-track">
+                <div id="fatBar" class="macro-bar-fill fat-fill" style="width: 0%"></div>
+              </div>
+              <span class="macro-numbers"><strong id="valFat">0</strong> / <span id="goalFat">65</span>g</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD RASTREADOR DE ÁGUA -->
+        <div class="card water-card">
+          <div class="water-header">
+            <div class="water-title-group">
+              <span class="water-icon-badge">💧</span>
+              <div>
+                <h3 class="card-title">Hidratação</h3>
+                <p class="water-subtitle"><strong id="valWaterMl">0</strong> de <span id="goalWaterMl">2500</span> ml (<span id="valWaterLiters">0.0</span>L)</p>
+              </div>
+            </div>
+            <div class="water-quick-btns">
+              <button id="btnWaterMinus" class="water-step-btn" title="Remover 250ml">−250</button>
+              <button id="btnWaterPlus" class="water-step-btn water-step-plus" title="Adicionar 250ml">+250ml</button>
+            </div>
+          </div>
+          <div class="water-glasses-grid" id="waterGlassesGrid">
+            <!-- Copos interativos renderizados via JS -->
+          </div>
+        </div>
+
+        <!-- SEÇÃO DE REFEIÇÕES DO DIA -->
+        <div class="meals-section-header">
+          <h2 class="section-heading">Alimentação</h2>
+          <button id="btnOpenBarcodeShortcut" class="barcode-shortcut-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
+            <span>Ler Código</span>
+          </button>
+        </div>
+
+        <div id="mealsContainer" class="meals-list">
+          <!-- Renderizado via JS: Café da Manhã, Almoço, Jantar, Lanches -->
+        </div>
+
+        <!-- CARD DE ATIVIDADES FÍSICAS -->
+        <div class="card exercise-card">
+          <div class="meal-card-top">
+            <div class="meal-info">
+              <div class="meal-icon-box exercise-icon-box">🏃</div>
+              <div>
+                <h3 class="meal-title">Atividades Físicas</h3>
+                <p class="meal-kcal-sub"><strong id="exerciseTotalKcal">0</strong> kcal queimadas</p>
+              </div>
+            </div>
+            <button id="btnOpenExerciseModal" class="meal-add-btn exercise-add-btn" aria-label="Adicionar exercício">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <div id="exerciseItemsList" class="meal-items-list"></div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 2: BUSCAR ALIMENTOS & BARCODE ==================== -->
+      <section id="view-search" class="view-section">
+        <div class="card search-header-card">
+          <div class="search-meal-selector-row">
+            <label for="searchTargetMeal" class="search-meal-label">Adicionar em:</label>
+            <select id="searchTargetMeal" class="select-pill">
+              <option value="breakfast">☕ Café da Manhã</option>
+              <option value="lunch">🍲 Almoço</option>
+              <option value="dinner">🥗 Jantar</option>
+              <option value="snacks">🍎 Lanches</option>
+            </select>
+          </div>
+
+          <div class="search-bar-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="foodSearchInput" class="search-input" placeholder="Buscar alimento, receita ou marca no Brasil..." autocomplete="off" />
+            <button id="btnClearSearch" class="clear-search-btn hidden" aria-label="Limpar">✕</button>
+          </div>
+
+          <div class="search-action-buttons">
+            <button id="btnStartScanner" class="action-tile-btn scanner-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+              <span>Código EAN</span>
+            </button>
+            <button id="btnOpenRecipeBuilderModal" class="action-tile-btn online-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
+              <span>Criar Receita</span>
+            </button>
+            <button id="btnOpenCustomFoodModal" class="action-tile-btn custom-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Novo Alimento</span>
+            </button>
+          </div>
+
+          <!-- ABAS DE CATEGORIA DE BUSCA -->
+          <div class="search-tabs">
+            <button class="search-tab active" data-tab="all">Brasil (TACO)</button>
+            <button class="search-tab" data-tab="recipes">Receitas 👩‍🍳</button>
+            <button class="search-tab" data-tab="favorites">Favoritos ⭐</button>
+            <button class="search-tab" data-tab="online">Mercado 🌐</button>
+          </div>
+        </div>
+
+        <!-- ÁREA DO SCANNER DE CÓDIGO DE BARRAS (OCULTA POR PADRÃO) -->
+        <div id="barcodeScannerCard" class="card scanner-card hidden">
+          <div class="scanner-header">
+            <h4>Leitor de Código de Barras (EAN)</h4>
+            <button id="btnCloseScanner" class="btn-close-sm">Fechar</button>
+          </div>
+          <div id="qrReaderBox" class="qr-reader-box"></div>
+          <p class="scanner-hint">Aponte a câmera do iPhone para o código de barras da embalagem ou digite o número abaixo:</p>
+          <div class="manual-barcode-row">
+            <input type="text" id="manualBarcodeInput" class="input-field" placeholder="Ex: 7891000100103" inputmode="numeric" />
+            <button id="btnLookupBarcode" class="btn-primary">Buscar EAN</button>
+          </div>
+          <div id="scannerStatusMsg" class="scanner-status"></div>
+        </div>
+
+        <!-- LISTA DE RESULTADOS -->
+        <div id="foodResultsList" class="food-results-list">
+          <!-- Preenchido via JS -->
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 3: PROGRESSO & PESO ==================== -->
+      <section id="view-progress" class="view-section">
+        <!-- CARD DE PESO ATUAL & META -->
+        <div class="card weight-hero-card">
+          <div class="weight-hero-header">
+            <div>
+              <span class="section-label">Acompanhamento de Peso</span>
+              <div class="weight-current-big">
+                <span id="lblCurrentWeight">75.0</span>
+                <small>kg</small>
+              </div>
+            </div>
+            <button id="btnOpenWeightModal" class="btn-primary btn-sm">+ Registrar Peso</button>
+          </div>
+
+          <div class="weight-goal-strip">
+            <div class="weight-stat-box">
+              <span class="w-label">Inicial</span>
+              <strong id="lblStartWeight">78.0 kg</strong>
+            </div>
+            <div class="weight-stat-box">
+              <span class="w-label">Diferença</span>
+              <strong id="lblWeightDiff" class="diff-badge">-3.0 kg</strong>
+            </div>
+            <div class="weight-stat-box">
+              <span class="w-label">Meta</span>
+              <strong id="lblTargetWeight">70.0 kg</strong>
+            </div>
+            <div class="weight-stat-box">
+              <span class="w-label">IMC</span>
+              <strong id="lblBmiValue">24.2</strong>
+            </div>
+          </div>
+
+          <!-- GRÁFICO DE EVOLUÇÃO DO PESO -->
+          <div class="chart-container">
+            <div class="chart-title-row">
+              <h4>Evolução do Peso</h4>
+              <span id="bmiStatusBadge" class="bmi-pill">Peso Normal</span>
+            </div>
+            <canvas id="weightChartCanvas" width="600" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- GRÁFICO DE CALORIAS DOS ÚLTIMOS 7 DIAS -->
+        <div class="card chart-card">
+          <div class="chart-title-row">
+            <h4>Calorias (Últimos 7 dias)</h4>
+            <span class="chart-legend-pill"><span class="dot-green"></span> Meta diária</span>
+          </div>
+          <canvas id="caloriesChartCanvas" width="600" height="220"></canvas>
+          <div class="weekly-stats-row">
+            <div class="weekly-stat">
+              <span>Média Calórica</span>
+              <strong id="avgWeeklyKcal">0 kcal</strong>
+            </div>
+            <div class="weekly-stat">
+              <span>Média Proteínas</span>
+              <strong id="avgWeeklyProt">0 g</strong>
+            </div>
+            <div class="weekly-stat">
+              <span>Média Água</span>
+              <strong id="avgWeeklyWater">0 ml</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTÓRICO DE PESAGENS -->
+        <div class="card">
+          <h4 class="card-title" style="margin-bottom: 12px;">Histórico de Pesagens</h4>
+          <div id="weightHistoryList" class="weight-history-list"></div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW 4: PERFIL, CALCULADORA & BACKUP ==================== -->
+      <section id="view-profile" class="view-section">
+        <!-- DICA DE INSTALAÇÃO NO IPHONE -->
+        <div class="card ios-install-card">
+          <div class="ios-install-header">
+            <span class="ios-icon">📱</span>
+            <div>
+              <h4>Como usar como App nativo no iPhone</h4>
+              <p>No Safari do iPhone, toque em <strong>Compartilhar</strong> (ícone com seta para cima) e escolha <strong>"Adicionar à Tela de Início"</strong>. Ele abrirá em tela cheia e funcionará 100% offline!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CALCULADORA DE METAS AUTOMÁTICA (MIFFLIN-ST JEOR) -->
+        <div class="card">
+          <h3 class="card-title">Calculadora Inteligente (Estilo Yazio)</h3>
+          <p class="card-desc">Preencha seus dados para calcular automaticamente suas calorias e macronutrientes ideais.</p>
+
+          <form id="calcProfileForm" class="form-grid">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Sexo</label>
+                <select id="profGender" class="input-field">
+                  <option value="male">Masculino</option>
+                  <option value="female">Feminino</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Idade (anos)</label>
+                <input type="number" id="profAge" class="input-field" value="28" min="12" max="100" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Altura (cm)</label>
+                <input type="number" id="profHeight" class="input-field" value="175" min="100" max="230" />
+              </div>
+              <div class="form-group">
+                <label>Peso Atual (kg)</label>
+                <input type="number" id="profWeight" class="input-field" value="75" step="0.1" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Meta de Peso (kg)</label>
+                <input type="number" id="profTargetWeight" class="input-field" value="70" step="0.1" />
+              </div>
+              <div class="form-group">
+                <label>Nível de Atividade</label>
+                <select id="profActivity" class="input-field">
+                  <option value="1.2">Sedentário (pouco exercício)</option>
+                  <option value="1.375" selected>Levemente Ativo (1-3x/sem)</option>
+                  <option value="1.55">Moderadamente Ativo (3-5x/sem)</option>
+                  <option value="1.725">Muito Ativo (6-7x/sem)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Qual é o seu objetivo?</label>
+              <select id="profGoalType" class="input-field">
+                <option value="lose">Perder Peso (Déficit de ~450 kcal)</option>
+                <option value="maintain">Manter Peso Atual</option>
+                <option value="gain">Ganhar Massa Muscular (Superávit de ~300 kcal)</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn-primary btn-block">Recalcular Metas Automaticamente</button>
+          </form>
+        </div>
+
+        <!-- AJUSTE MANUAL DE METAS DIÁRIAS -->
+        <div class="card">
+          <h3 class="card-title">Suas Metas Diárias</h3>
+          <p class="card-desc">Você também pode personalizar manualmente suas metas de calorias, macros e água:</p>
+
+          <form id="manualGoalsForm" class="form-grid">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Meta de Calorias (kcal)</label>
+                <input type="number" id="goalInputKcal" class="input-field" value="2000" min="800" max="6000" />
+              </div>
+              <div class="form-group">
+                <label>Meta de Água (ml)</label>
+                <input type="number" id="goalInputWater" class="input-field" value="2500" step="250" min="500" max="6000" />
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>Carboidratos (g)</label>
+                <input type="number" id="goalInputCarb" class="input-field" value="220" min="0" />
+              </div>
+              <div class="form-group">
+                <label>Proteínas (g)</label>
+                <input type="number" id="goalInputProt" class="input-field" value="150" min="0" />
+              </div>
+              <div class="form-group">
+                <label>Gorduras (g)</label>
+                <input type="number" id="goalInputFat" class="input-field" value="60" min="0" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn-secondary btn-block">Salvar Metas Manuais</button>
+          </form>
+        </div>
+
+        <!-- BACKUP E DADOS LOCAIS -->
+        <div class="card">
+          <h3 class="card-title">Backup & Dados Locais</h3>
+          <p class="card-desc">Seus dados ficam salvos 100% no seu aparelho. Exporte um backup em JSON quando quiser guardar uma cópia no Arquivos do iPhone / iCloud.</p>
+          <div class="backup-actions">
+            <button id="btnExportData" class="btn-secondary">⬇️ Exportar Backup</button>
+            <label for="fileImportInput" class="btn-secondary file-label-btn">⬆️ Importar Backup</label>
+            <input type="file" id="fileImportInput" accept=".json" class="hidden" />
+          </div>
+          <hr class="divider" />
+          <button id="btnResetAllData" class="btn-danger-outline btn-block">Apagar Todos os Dados</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- BARRA DE NAVEGAÇÃO INFERIOR ESTILO iOS / YAZIO -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-target="view-diary">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>Diário</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-search">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Alimentos</span>
+      </button>
+
+      <button id="btnFabAdd" class="nav-fab" aria-label="Adicionar Alimento Rápido">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+
+      <button class="nav-tab" data-target="view-progress">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Progresso</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-profile">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Metas</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==================== MODAL: SELECIONAR PORÇÃO / QUANTIDADE DO ALIMENTO ==================== -->
+  <div id="foodDetailModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div>
+          <span id="modalFoodCategory" class="modal-badge">Tabela TACO</span>
+          <h3 id="modalFoodTitle" class="modal-title">Peito de Frango Grelhado</h3>
+        </div>
+        <button id="btnFavToggleModal" class="fav-star-btn" title="Favoritar alimento">☆</button>
+      </div>
+
+      <!-- PREVIEW DOS MACROS PARA A QUANTIDADE ESCOLHIDA -->
+      <div class="portion-macro-preview">
+        <div class="preview-kcal-circle">
+          <strong id="previewKcal">191</strong>
+          <span>kcal</span>
+        </div>
+        <div class="preview-macros-row">
+          <div class="preview-macro-box carb-box">
+            <span class="pm-label">Carbo</span>
+            <strong id="previewCarb">0.0g</strong>
+          </div>
+          <div class="preview-macro-box prot-box">
+            <span class="pm-label">Proteína</span>
+            <strong id="previewProt">38.4g</strong>
+          </div>
+          <div class="preview-macro-box fat-box">
+            <span class="pm-label">Gordura</span>
+            <strong id="previewFat">3.0g</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- INGREDIENTES DA RECEITA (SE FOR RECEITA) -->
+      <div id="modalRecipeIngredientsBox" class="recipe-ingredients-info hidden">
+        <strong>👩‍🍳 Ingredientes da Receita:</strong>
+        <p id="modalRecipeIngredientsText"></p>
+      </div>
+
+      <!-- ESCOLHA DE MEDIDA CASEIRA OU GRAMAS -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Atalhos de Porção</label>
+          <div id="portionShortcuts" class="portion-chips">
+            <!-- Botões gerados dinamicamente: ex: "1 filé médio (120g)", "100g", "50g" -->
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Quantidade em Gramas / ml</label>
+            <input type="number" id="modalGramsInput" class="input-field input-lg" value="100" min="1" max="5000" step="1" />
+          </div>
+          <div class="form-group">
+            <label>Refeição</label>
+            <select id="modalMealSelect" class="input-field input-lg">
+              <option value="breakfast">☕ Café da Manhã</option>
+              <option value="lunch">🍲 Almoço</option>
+              <option value="dinner">🥗 Jantar</option>
+              <option value="snacks">🍎 Lanches</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btnCancelFoodModal" class="btn-secondary">Cancelar</button>
+          <button type="button" id="btnConfirmAddFood" class="btn-primary">Adicionar ao Diário</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CRIAR ALIMENTO PERSONALIZADO ==================== -->
+  <div id="customFoodModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Alimento / Receita</h3>
+        <button id="btnCloseCustomModal" class="btn-close-sm">✕</button>
+      </div>
+      <form id="customFoodForm" class="form-grid">
+        <div class="form-group">
+          <label>Nome do Alimento ou Marca</label>
+          <input type="text" id="custName" class="input-field" placeholder="Ex: Pão Integral Wickbold / Meu Shake" required />
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Nome da Porção Caseira</label>
+            <input type="text" id="custPortionName" class="input-field" placeholder="Ex: 1 unidade / 1 scoop" value="1 porção" />
+          </div>
+          <div class="form-group">
+            <label>Peso da Porção (g/ml)</label>
+            <input type="number" id="custPortionGrams" class="input-field" value="100" min="1" required />
+          </div>
+        </div>
+        <p class="form-helper-text">Informe os valores nutricionais <strong>da porção acima</strong> (o app converterá automaticamente para 100g):</p>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Calorias da Porção (kcal)</label>
+            <input type="number" id="custKcal" class="input-field" placeholder="Ex: 130" step="0.1" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Carboidratos (g)</label>
+            <input type="number" id="custCarb" class="input-field" placeholder="Ex: 22" step="0.1" min="0" value="0" required />
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Proteínas (g)</label>
+            <input type="number" id="custProt" class="input-field" placeholder="Ex: 6" step="0.1" min="0" value="0" required />
+          </div>
+          <div class="form-group">
+            <label>Gorduras (g)</label>
+            <input type="number" id="custFat" class="input-field" placeholder="Ex: 2" step="0.1" min="0" value="0" required />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary btn-block">Salvar e Usar Alimento</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CONSTRUTOR DE RECEITAS COM INGREDIENTES ==================== -->
+  <div id="recipeBuilderModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">👩‍🍳 Criar Receita Completa</h3>
+        <button id="btnCloseRecipeBuilderModal" class="btn-close-sm">✕</button>
+      </div>
+      <form id="recipeBuilderForm" class="form-grid">
+        <div class="form-group">
+          <label>Nome da sua Receita</label>
+          <input type="text" id="recBuilderName" class="input-field" placeholder="Ex: Minha Marmita Fit / Panqueca Caseira" required />
+        </div>
+
+        <div class="recipe-add-ing-box">
+          <label>Adicionar Ingrediente da Tabela TACO</label>
+          <div class="form-row-2" style="margin-top: 6px;">
+            <select id="recBuilderFoodSelect" class="input-field"></select>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="recBuilderFoodGrams" class="input-field" value="100" min="1" placeholder="g" />
+              <button type="button" id="btnAddIngredientToRecipe" class="btn-primary btn-sm">+ Incluir</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="recBuilderIngredientsList" class="recipe-ing-list"></div>
+
+        <div class="recipe-summary-banner">
+          <div>
+            <span>Peso Total: <strong id="recBuilderTotalGrams">0g</strong></span>
+            <span>Calorias Totais: <strong id="recBuilderTotalKcal">0 kcal</strong></span>
+          </div>
+          <div class="recipe-summary-macros">
+            <span id="recBuilderTotalMacros">C: 0g · P: 0g · G: 0g</span>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Rende quantas porções?</label>
+            <input type="number" id="recBuilderServings" class="input-field" value="1" min="1" max="30" required />
+          </div>
+          <div class="form-group">
+            <label>Nome da Porção</label>
+            <input type="text" id="recBuilderPortionLabel" class="input-field" value="1 porção" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block">Salvar Receita e Adicionar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADICIONAR EXERCÍCIO ==================== -->
+  <div id="exerciseModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Registrar Atividade Física</h3>
+        <button id="btnCloseExerciseModal" class="btn-close-sm">✕</button>
+      </div>
+      <form id="exerciseForm" class="form-grid">
+        <div class="form-group">
+          <label>Escolha a Atividade</label>
+          <select id="exerciseSelect" class="input-field"></select>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Duração (minutos)</label>
+            <input type="number" id="exerciseMinutes" class="input-field" value="45" min="1" max="600" required />
+          </div>
+          <div class="form-group">
+            <label>Calorias Queimadas (kcal)</label>
+            <input type="number" id="exerciseKcalInput" class="input-field" value="270" min="1" max="5000" required />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary btn-block">Salvar Exercício</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: REGISTRAR PESO ==================== -->
+  <div id="weightModal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">Registrar Peso</h3>
+        <button id="btnCloseWeightModal" class="btn-close-sm">✕</button>
+      </div>
+      <form id="weightForm" class="form-grid">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Peso (kg)</label>
+            <input type="number" id="weightModalInput" class="input-field input-lg" step="0.1" min="25" max="300" required />
+          </div>
+          <div class="form-group">
+            <label>Data</label>
+            <input type="date" id="weightDateInput" class="input-field input-lg" required />
+          </div>
+        </div>
+        <button type="submit" class="btn-primary btn-block">Salvar Pesagem</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastNotification" class="toast hidden">Alimento adicionado!</div>
+
+  <script src="taco-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

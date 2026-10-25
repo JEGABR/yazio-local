@@ -1,0 +1,19 @@
+{
+  "name": "NutriFlow — Diário Alimentar & Macros",
+  "short_name": "NutriFlow",
+  "description": "Contador de calorias, macronutrientes, água e peso local estilo Yazio para iPhone.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F6F9",
+  "theme_color": "#2ECC71",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
