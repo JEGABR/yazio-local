@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nutriflow-yazio-v3';
+const CACHE_NAME = 'nutriflow-yazio-v4';
 const ASSETS = [
   './',
   './index.html',

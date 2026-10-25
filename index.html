@@ -433,15 +433,19 @@
 
         <!-- CONFIGURAÇÃO DO AGENTE DE IA (GEMINI) -->
         <div class="card ai-config-card">
-          <h3 class="card-title">✨ Agente Nutricionista por Foto (Google Gemini)</h3>
+          <h3 class="card-title">✨ Agente Nutricionista por Foto (Gemini 3.8)</h3>
           <p class="card-desc">Cole sua chave gratuita do Google AI Studio para identificar pratos prontos (como pizza, feijoada, self-service) direto pela câmera do iPhone. A chave fica salva <strong>apenas localmente no seu aparelho</strong>.</p>
           <form id="geminiConfigForm" class="form-grid">
             <div class="form-group">
               <label>Sua Chave de API do Gemini (AIzaSy...)</label>
               <input type="password" id="geminiApiKeyInput" class="input-field" placeholder="Cole sua API Key aqui..." autocomplete="off" />
             </div>
+            <div class="form-group">
+              <label>Modelo Gemini (com auto-detecção da chave)</label>
+              <input type="text" id="geminiModelInput" class="input-field" value="gemini-3.8-flash" placeholder="Ex: gemini-3.8-flash" />
+            </div>
             <div class="backup-actions">
-              <button type="submit" class="btn-primary">Salvar Chave IA</button>
+              <button type="submit" class="btn-primary">Salvar Config IA</button>
               <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="btn-secondary file-label-btn" style="text-decoration:none;">🔑 Gerar Chave Grátis</a>
             </div>
           </form>
@@ -724,7 +728,7 @@
       <div class="modal-handle"></div>
       <div class="modal-header">
         <div>
-          <span class="modal-badge ai-badge">✨ Google Gemini Vision</span>
+          <span id="aiModalModelBadge" class="modal-badge ai-badge">✨ Gemini 3.8 Vision</span>
           <h3 class="modal-title">Analisar Prato por Foto</h3>
         </div>
         <button id="btnCloseAiPhotoModal" class="btn-close-sm">✕</button>

@@ -1049,10 +1049,15 @@
     if (keyInput) {
       keyInput.value = getGeminiApiKey();
     }
+    const modelInput = document.getElementById('geminiModelInput');
+    if (modelInput) {
+      modelInput.value = getGeminiModel();
+    }
   }
 
-  // ==================== AGENTE NUTRICIONISTA IA (GEMINI VISION) ====================
+  // ==================== AGENTE NUTRICIONISTA IA (GEMINI 3.8 VISION) ====================
   const GEMINI_KEY_STORAGE = 'nutriflow_gemini_api_key';
+  const GEMINI_MODEL_STORAGE = 'nutriflow_gemini_model';
   let lastAiAnalysisResult = null;
 
   function getGeminiApiKey() {
@@ -1066,11 +1071,24 @@
     saveState();
   }
 
+  function getGeminiModel() {
+    return (localStorage.getItem(GEMINI_MODEL_STORAGE) || state.geminiModel || 'gemini-3.8-flash').trim();
+  }
+
+  function setGeminiModel(model) {
+    const clean = (model || 'gemini-3.8-flash').trim().replace(/^models\//, '');
+    localStorage.setItem(GEMINI_MODEL_STORAGE, clean);
+    state.geminiModel = clean;
+    saveState();
+  }
+
   function openAiPhotoModal() {
     const hasKey = Boolean(getGeminiApiKey());
     document.getElementById('aiInlineKeyBox').classList.toggle('hidden', hasKey);
     document.getElementById('aiTargetMealSelect').value =
       document.getElementById('searchTargetMeal')?.value || 'lunch';
+    const badge = document.getElementById('aiModalModelBadge');
+    if (badge) badge.textContent = `✨ ${getGeminiModel()}`;
     document.getElementById('aiPhotoModal').classList.remove('hidden');
   }
 
@@ -1109,6 +1127,45 @@
     });
   }
 
+  async function discoverAvailableGeminiModels(apiKey) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      const list = (data.models || [])
+        .filter(
+          (m) =>
+            m.name &&
+            m.name.includes('gemini') &&
+            !m.name.includes('embedding') &&
+            !m.name.includes('imagen') &&
+            !m.name.includes('tts') &&
+            Array.isArray(m.supportedGenerationMethods) &&
+            m.supportedGenerationMethods.includes('generateContent')
+        )
+        .map((m) => m.name.replace(/^models\//, ''));
+
+      // Ordenar priorizando 3.8 -> 3.x -> flash-latest -> mais recentes
+      list.sort((a, b) => {
+        const score = (name) => {
+          let s = 0;
+          if (name.includes('3.8')) s += 100;
+          else if (name.includes('3.')) s += 80;
+          else if (name.includes('gemini-3')) s += 75;
+          if (name.includes('flash')) s += 20;
+          if (name.includes('latest')) s += 10;
+          return s;
+        };
+        return score(b) - score(a);
+      });
+      return list;
+    } catch (e) {
+      return [];
+    }
+  }
+
   async function callGeminiVisionAPI(apiKey, base64Data, mimeType, userHint) {
     const prompt = `Você é um nutricionista brasileiro especialista na Tabela TACO (UNICAMP) e em pratos prontos no Brasil (como feijoada, pizza, prato feito, churrasco, salgados, doces, lanches e marmitas).
 Analise a imagem deste alimento/prato e estime o peso em gramas, calorias (kcal) e macronutrientes (carboidratos, proteínas e gorduras em gramas) de toda a porção visível.
@@ -1135,10 +1192,21 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
   ]
 }`;
 
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    const preferred = getGeminiModel();
+    const discovered = await discoverAvailableGeminiModels(apiKey);
+    const candidates = Array.from(
+      new Set([
+        preferred,
+        'gemini-3.8-flash',
+        'gemini-3.8-pro',
+        ...discovered,
+        'gemini-flash-latest'
+      ])
+    ).filter(Boolean);
+
     let lastError = null;
 
-    for (const model of models) {
+    for (const model of candidates) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
           apiKey
@@ -1170,7 +1238,10 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
 
         const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const cleaned = rawText.replace(/```json|```/g, '').trim();
-        return JSON.parse(cleaned);
+        const parsed = JSON.parse(cleaned);
+        const badge = document.getElementById('aiModalModelBadge');
+        if (badge) badge.textContent = `✨ ${model}`;
+        return parsed;
       } catch (err) {
         lastError = err;
       }
@@ -1705,8 +1776,10 @@ Retorne APENAS um objeto JSON válido (sem markdown) no seguinte formato exato:
       geminiConfigForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const key = document.getElementById('geminiApiKeyInput').value.trim();
+        const model = document.getElementById('geminiModelInput')?.value.trim() || 'gemini-3.8-flash';
         setGeminiApiKey(key);
-        showToast('Chave do Gemini salva no seu iPhone!');
+        setGeminiModel(model);
+        showToast(`Configuração salva (${model})!`);
       });
     }
 
